@@ -9,6 +9,9 @@ const cloudinary = require('cloudinary').v2;
 require("./Config/CloudinaryConfig")
 const cron = require('node-cron');
 const { getReviews } = require('./puppeteer/getReviews')
+const Admin = require('./Models/Admin')
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken'); // Import jsonwebtoken
 
 
 
@@ -178,6 +181,99 @@ router.delete("/product/:id", async (req, res) => {
       error: error.message,
     });
   }
+});
+
+router.post('/add-admin', async (req, res) => {
+    try {
+        const { userName, email, password } = req.body;
+
+        // 1. Basic Validation
+        if (!userName || !password) {
+            return res.status(400).json({ message: 'Please provide name, email, and password.' });
+        }
+
+        // 2. Check if Admin already exists
+        const existingAdmin = await Admin.findOne({ email });
+        if (existingAdmin) {
+            return res.status(400).json({ message: 'An admin with this email already exists.' });
+        }
+
+        // 3. Encrypt the password using bcrypt
+        const saltRounds = 10;
+        const salt = await bcrypt.genSalt(saltRounds);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        // 4. Create the new Admin instance
+        const newAdmin = new Admin({
+            userName,
+            password: hashedPassword
+        });
+
+        // 5. Save to the database
+        await newAdmin.save();
+
+        // 6. Send success response (excluding the password)
+        res.status(201).json({ 
+            message: 'Admin added successfully', 
+            admin: {
+                _id: newAdmin._id,
+                name: newAdmin.userName,
+                email: newAdmin.email
+            }
+        });
+
+    } catch (error) {
+        console.error('Error adding admin:', error);
+        res.status(500).json({ message: 'Server error while adding admin.' });
+    }
+});
+
+
+router.post('/login', async (req, res) => {
+    try {
+        const { userName, password } = req.body;
+
+        // 1. Basic Validation
+        if (!userName || !password) {
+            return res.status(400).json({ message: 'Please provide both userName and password.' });
+        }
+
+        // 2. Find the admin by userName
+        const admin = await Admin.findOne({ userName });
+        if (!admin) {
+            return res.status(401).json({ message: 'Invalid credentials.' }); 
+        }
+
+        // 3. Compare the provided password with the hashed password
+        const isMatch = await bcrypt.compare(password, admin.password);
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Invalid credentials.' });
+        }
+
+        // 4. Generate the JWT
+        // The payload contains the data you want to store inside the token
+        const payload = {
+            adminId: admin._id,
+            userName: admin.userName
+        };
+
+        // Sign the token with your secret key and set an expiration time (e.g., 1 hour)
+        const token = jwt.sign(payload, process.env.JWT_KEY, { expiresIn: '1h' });
+
+        // 5. Send success response including the generated token
+        res.status(200).json({ 
+            message: 'Login successful', 
+            token: token, // Send the token to the client
+            admin: {
+                _id: admin._id,
+                userName: admin.userName
+            }
+        });
+
+    } catch (error) {
+        console.error('Error during admin login:', error);
+        res.status(500).json({ message: 'Server error during login.' });
+    }
 });
 
 
