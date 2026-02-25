@@ -183,6 +183,42 @@ router.delete("/product/:id", async (req, res) => {
   }
 });
 
+
+router.put("/product/:id", async (req, res) => {
+  try {
+    console.log("CALLED --------------")
+    const productId = req.params.id;
+    const updateData = req.body;
+    console.log("udateData 00000000000000",updateData)
+    const updatedProduct = await Product.findByIdAndUpdate(
+      productId,
+      updateData,
+      { returnDocument: 'after' }
+    );
+    if (!updatedProduct) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found"
+      });
+    }
+    console.log(updatedProduct)
+    res.status(200).json({
+      success: true,
+      message: "Successfully updated product",
+      product: updatedProduct
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to update product",
+      error: error.message
+    });
+  }
+});
+
 router.post('/add-admin', async (req, res) => {
     try {
         const { userName, email, password } = req.body;
