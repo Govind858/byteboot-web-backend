@@ -12,6 +12,7 @@ const { getReviews } = require('./puppeteer/getReviews')
 const Admin = require('./Models/Admin')
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken'); // Import jsonwebtoken
+const connectDB = require('./Config/Dbconfig');
 
 
 
@@ -337,8 +338,7 @@ app.use(router)
 
 const start = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ MongoDB Connected Successfully");
+    await connectDB();
 
     // AdminJS Setup
     const { AdminJS } = await import('adminjs');
