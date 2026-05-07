@@ -13,6 +13,8 @@ const Admin = require('./Models/Admin')
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken'); // Import jsonwebtoken
 const connectDB = require('./Config/Dbconfig');
+const transporter = require('./Config/EmailConfig'); // Import Email Transporter
+
 
 
 
@@ -220,7 +222,59 @@ router.put("/product/:id", async (req, res) => {
   }
 });
 
+// Mailing API - Users can send inquiries directly to your Gmail
+router.post("/send-email", async (req, res) => {
+    const { name, email, message } = req.body;
+
+    // 1. Validation
+    if (!name || !email || !message) {
+        return res.status(400).json({ 
+            success: false, 
+            message: "Missing fields! Please provide name, email, and message." 
+        });
+    }
+
+    try {
+        // 2. Configure the Email
+        const mailOptions = {
+            from: `"${name}" <${process.env.EMAIL_USER}>`, 
+            replyTo: email, // Allows you to click 'Reply' in Gmail to talk to the user
+            to: process.env.RECEIVER_EMAIL,
+            subject: `🚀 New Inquiry from ${name}`,
+            html: `
+                <div style="font-family: sans-serif; border: 1px solid #ddd; padding: 20px; border-radius: 10px; max-width: 600px;">
+                    <h2 style="color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px;">New Message Received</h2>
+                    <p><strong>From:</strong> ${name}</p>
+                    <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+                    <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin-top: 15px;">
+                        <p style="margin-top: 0;"><strong>Message:</strong></p>
+                        <p style="white-space: pre-wrap;">${message}</p>
+                    </div>
+                    <p style="font-size: 12px; color: #888; margin-top: 20px;">Sent via Byteboot Web Backend</p>
+                </div>
+            `
+        };
+
+        // 3. Send
+        await transporter.sendMail(mailOptions);
+
+        res.status(200).json({
+            success: true,
+            message: "Message sent to your Gmail successfully!"
+        });
+
+    } catch (error) {
+        console.error("Mailing Error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to send message.",
+            error: error.message
+        });
+    }
+});
+
 router.post('/add-admin', async (req, res) => {
+
     try {
         const { userName, email, password } = req.body;
 
